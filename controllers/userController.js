@@ -174,6 +174,7 @@ const forgotPassword = async (request, response) => {
 
   await sendMail({
     email: user.email,
+    
     subject: "Password reset token",
     message,
   });
