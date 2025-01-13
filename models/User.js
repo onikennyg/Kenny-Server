@@ -1,43 +1,32 @@
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const Joi = require("joi");
+const passwordComplexity = require("joi-password-complexity");
 
-
-const UserSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: [true, 'Please provide name'],
-        minlength: 3,
-        maxlength: 50
-    },
-
-    email:{
-        type: String,
-        required: [true, "Please provide email"],
-        minlength: 3,
-        maxlength: 50,
-        match: [
-            /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
-            'Please provide a valid email',
-          ],
-          unique: true,
-    },
-    password: {
-        type: String,
-        required: [true, 'Please provide password'],
-        minlength: 3
-    },
+const userSchema = new mongoose.Schema({
+	firstName: { type: String, required: true },
+	lastName: { type: String, required: true },
+	email: { type: String, required: true },
+	password: { type: String, required: true },
 });
 
-UserSchema.pre("save", async function(){
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-})
+userSchema.methods.generateAuthToken = function () {
+	const token = jwt.sign({ _id: this._id }, process.env.JWTPRIVATEKEY, {
+		expiresIn: "7d",
+	});
+	return token;
+};
 
+const User = mongoose.model("user", userSchema);
 
+const validate = (data) => {
+	const schema = Joi.object({
+		firstName: Joi.string().required().label("First Name"),
+		lastName: Joi.string().required().label("Last Name"),
+		email: Joi.string().email().required().label("Email"),
+		password: passwordComplexity().required().label("Password"),
+	});
+	return schema.validate(data);
+};
 
-UserSchema.methods.comparePassword = async function(candidatePassword){
-    const isMatch = await bcrypt.compare(candidatePassword, this.password);
-    return isMatch;
-}
-
-module.exports = mongoose.model("User", UserSchema);
+module.exports = { User, validate };
